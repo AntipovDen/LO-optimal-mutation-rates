@@ -79,6 +79,57 @@ def calc_loom_s2(n, portfolio=None):
     mask = [[int(k == 0) for k in line] for line in best_ks]
     return np.ma.array(runtimes, mask=mask), np.ma.array(best_ks, mask=mask)
 
+# Compute optimal mutation policy and expected runtimes for each individual
+# in the full bit-string state space S^(n) under lexicographic selection.
+# Returns two dicts: T[x] is expected runtime from bit-tuple x,
+# K[x] is the optimal k for x.
+def calc_loom_sn(n, portfolio=None):
+    if portfolio is None:
+        portfolio = list(range(1, n+1))
+    # generate all bit-strings of length n
+    states = list(product([0,1], repeat=n))
+    # precompute LO and OM for each state
+    lo_vals = {x: sum(1 for i in range(n) if x[i]==1 and all(x[j]==1 for j in range(i)))
+               for x in states}
+    om_vals = {x: sum(x) for x in states}
+    # lex order on (lo,om)
+    sorted_states = sorted(states, key=lambda x: (lo_vals[x], om_vals[x]))
+    # dynamic programming containers
+    T = {}   # expected runtime
+    K = {}   # best k
+    # terminal: all-ones string
+    ones = tuple([1]*n)
+    T[ones] = 0
+    K[ones] = 0
+    # iterate in descending lex order (from hardest to easiest)
+    for x in reversed(sorted_states[:-1]):
+        lo, om = lo_vals[x], om_vals[x]
+        best_t = np.inf
+        best_k = None
+        for k in portfolio:
+            if k > n - lo:
+                break
+            num = 1.0
+            leave_prob = 0.0
+            # consider all possible offspring with better (lo,om)
+            for y in states:
+                if (lo_vals[y], om_vals[y]) <= (lo, om):
+                    continue
+                d = sum(a!=b for a,b in zip(x,y))
+                if d != k:
+                    continue
+                pxy = 1.0/comb(n, k)
+                leave_prob += pxy
+                num += pxy * T[y]
+            if leave_prob <= 0:
+                continue
+            t_val = num/leave_prob
+            if t_val < best_t:
+                best_t, best_k = t_val, k
+        T[x] = best_t
+        K[x] = best_k
+    return T, K
+
 
 # Optimized function: (lo, om) aka "lexicographic selection" (we can only decrease OM value when we increase LO)
 # State space: lo, that is, we have a limited information about the state space

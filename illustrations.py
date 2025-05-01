@@ -54,7 +54,7 @@ def runtimes_plot():
     names = ["runtimes_opt_{}", "runtimes_strict_{}"]
     labels = ["Standard selection", "Strict selection"]
 
-    n_ranges = [[2 ** i for i in range(3, 8)] for _ in range(2)]
+    n_ranges = [[2 ** i for i in range(3, 9)] for _ in range(2)]
     colors = ["bo-", "ro-"]
 
     for name, label, ns , color in zip(names, labels, n_ranges, colors):
